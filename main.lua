@@ -36,7 +36,7 @@ end
 function love.update(dt)
   train:update(dt)
   
-  player:setLinearVelocity(playerCtl:getAxis("x") * dt * 10000, playerCtl:getAxis("y") * dt * 10000)
+  player:setLinearVelocity(playerCtl:getAxis("x") * 150, playerCtl:getAxis("y") * 150)
 end
 
 function love.draw()

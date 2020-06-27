@@ -20,6 +20,12 @@ function Train:new()
     {0, 3, -1}, {0, 2, -1}, {0, 4, 1}, {0, 6, -1}, {1, 4, -1}
   }
 
+  self.seatsOccupied = {}
+  for i, seat in ipairs(self.seats) do
+    -- This list will hold the people sitting on the seats
+    self.seatsOccupied[i] = {}
+  end
+
   self.poles = {
     {2, 3}, {2, 9}
   }
@@ -27,8 +33,12 @@ function Train:new()
   self:setWalls()
 
   self.passengers = {}
-  for i = 0, 10 do
-    table.insert(self.passengers, Passenger(love.math.random(self.x + 20, self.x + self.cart_width - 20), love.math.random(self.y + 20, self.y + self.cart_height - 20), self.world))
+  for i = 0, 50 do
+    local px = love.math.random(self.x + 20, self.x + self.cart_width - 20)
+    local py = love.math.random(self.y + 20, self.y + self.cart_height - 20)
+    -- px = self.x + 50
+    -- py = self.y + self.cart_height - 10
+    table.insert(self.passengers, Passenger(px, py, self))
   end
 end
 
@@ -43,18 +53,36 @@ function Train:setWalls()
   wall_right:setType('static')
 
   for i, pole in ipairs(self.poles) do
-    local pole = self.world:newCircleCollider(self.x + self.cart_width * pole[2]/ 12, self.y + self.cart_height * pole[1] / 4, 2)
+    local x, y = self:getPoleCoords(pole)
+    local pole = self.world:newCircleCollider(x, y, 2)
     pole:setType('static')
   end
 
   for i, seat in ipairs(self.seats) do
-    local seat = self.world:newRectangleCollider(self.x + seat[2] * self.cart_width / 12 - 5, self.y + (self.cart_height * 2 / 3) * seat[1], 10, self.cart_height / 3)
+    local x, y = self:getSeatCoords(seat)
+    local seat = self.world:newRectangleCollider(x, y, 10, self.cart_height / 3)
     seat:setType('static')
   end
 end
 
+function Train:getSeatCoords(seat)
+  return self.x + seat[2] * self.cart_width / 12 - 5, self.y + (self.cart_height * 2 / 3) * seat[1]
+end
+
+function Train:getSeatEntrance(seat)
+  return self.x + seat[2] * self.cart_width / 12 - 5 + self.cart_width * seat[3] / 24 , self.y + (self.cart_height * (seat[1] + 1) / 3)
+end
+
+function Train:getPoleCoords(pole)
+  return self.x + self.cart_width * pole[2] / 12, self.y + self.cart_height * pole[1] / 4
+end
+
 function Train:update(dt)
   self.world:update(dt)
+
+  for i, passenger in ipairs(self.passengers) do
+    passenger:update(dt)
+  end
 end
 
 function Train:draw()
@@ -66,8 +94,13 @@ function Train:draw()
   self:carriageOutline()
 
   love.graphics.setLineWidth(0.5)
-
   self.world:draw()
+
+  love.graphics.setColor(254 / 255, 231 / 255, 97 / 255)
+  for i, pole in ipairs(self.poles) do
+    love.graphics.circle("fill", self.x + self.cart_width * pole[2]/ 12, self.y + self.cart_height * pole[1] / 4, 2)
+  end
+
   love.graphics.pop()
 
   -- Other carriages
@@ -85,8 +118,6 @@ function Train:draw()
   love.graphics.translate(c3x * 5 + self.cart_width + 80, c3y * 5)
   self:carriageOutline()
   love.graphics.pop()
-
-
 end
 
 function Train:carriageOutline()
