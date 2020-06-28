@@ -95,6 +95,12 @@ function Passenger:update(dt)
     end
   end
 
+  if self.goingTo and self.goingTo[1] == "seat" and #self.train.seats[self.goingTo[2]].occupied >= 3 then
+    -- Uh oh! Find another seat!
+    self:findASeat()
+    self.phase = goingToMiddle
+  end
+
   if self.phase == walkingThroughMiddle then
     -- We are walking to our seat
     local seatX, seatY = self.train:getSeatEntrance(self.train.seats[self.goingTo[2]])
@@ -118,14 +124,10 @@ function Passenger:update(dt)
 
     -- Alright!
 
-    if #self.train.seatsOccupied[self.goingTo[2]] >= 3 then
-      -- Uh oh! Find another seat!
-      self:findASeat()
-      self.phase = goingToMiddle
-    end
+    
   end
 
-  if self.phase == goingToSeat and self:checkInSeat() then
+  if self:checkInSeat() then
     self:sitDown(self.seat)
   end
 end
@@ -134,22 +136,29 @@ function Passenger:checkInSeat()
   -- AAAAA, I say, with only a few hours left, and still no gameplay
   local x, y = self.body:getX(), self.body:getY()
   for i, seat in ipairs(self.train.seats) do
-    local seatX, seatY = self.train:getSeatCoords(seat)
-    local sx, sy, ex, ey
-    if seat[3] == 1 then
-      sx = seatX + 10
-      sy = seatY
-      ex = sx + 40
-      ey = seatY + self.train.cart_height / 3
-    else
-      sx = seatX - 40
-      sy = seatY
-      ex = seatX
-      ey = seatY + self.train.cart_height / 3
+    local sx, sy, w, h = seat:getBoundaries()
+
+    local testX = x
+    local testY = y
+
+    if x < sx then
+      testX = sx
+    elseif x > sx + w then
+      testX = sx + w
     end
 
-    if x >= sx and x <= ex and y >= sy and y <= ey then
-      self.seat = i
+    if y < sy then
+      testY = sy
+    elseif y > sy + h then
+      testY = sy + h
+    end
+
+    local distX = x - testX
+    local distY = y - testY
+    local dist = math.sqrt(distX*distX + distY*distY)
+
+    if dist <= 10 then
+      self.seat = seat
       return true
     end
   end
@@ -158,11 +167,14 @@ function Passenger:checkInSeat()
   return false
 end
 
-function Passenger:sitDown(id)
-  if #self.train.seatsOccupied[id] < 3 then
+function Passenger:sitDown(seat)
+  if #seat.occupied < 3 and self.phase ~= seatingDown then
     self.phase = seatingDown
-    table.insert(self.train.seatsOccupied[id], self)
+    table.insert(seat.occupied, self)
     self.goingTo = nil
+
+    self.body:setType('static')
+    self.body:setPosition(seat:getPosition(#seat.occupied))
   end
 end
 
@@ -174,7 +186,7 @@ function Passenger:findASeat()
   -- 3. If that fails, stand up, or do something else idk
   local closestFree, closeX, closeY
   for i, seat in ipairs(self.train.seats) do
-    local freeSeats = 3 - #self.train.seatsOccupied[i]
+    local freeSeats = 3 - #seat.occupied
     -- TODO this should calculate the seat entrance position!
     local x, y = self.train:getSeatCoords(seat)
 
@@ -219,27 +231,6 @@ function Passenger:draw()
   if self.phase == seatingDown then
     love.graphics.setColor(0, 1, 0)
     love.graphics.circle("fill", self.body:getX(), self.body:getY(), 10)
-    love.graphics.setColor(1, 1, 1)
-    love.graphics.print(self.seat, self.body:getX() - 10, self.body:getY() - 10)
-  end
-
-  for i, seat in ipairs(self.train.seats) do
-    local seatX, seatY = self.train:getSeatCoords(seat)
-    local sx, sy, ex, ey
-    if seat[3] == 1 then
-      sx = seatX + 10
-      sy = seatY
-      ex = sx + 40
-      ey = seatY + self.train.cart_height / 3
-    else
-      sx = seatX - 40
-      sy = seatY
-      ex = seatX
-      ey = seatY + self.train.cart_height / 3
-    end
-
-    love.graphics.setColor(1, 1, 0)
-    love.graphics.rectangle("line", sx, sy, ex - sx, ey - sy)
   end
 end
 

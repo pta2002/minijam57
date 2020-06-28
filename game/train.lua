@@ -23,14 +23,23 @@ function Train:new()
   self.world:addCollisionClass('Seat', { ignores = { 'Passenger', 'Player' } })
 
   self.seats = { -- {side, x, dir}
-    {0, 3, -1}, 
+    Seat(0, 3, -1, self),
+    Seat(0, 3, 1, self),
+    Seat(1, 3, -1, self),
+    Seat(1, 3, 1, self),
+
+    Seat(0, 6, -1, self),
+    Seat(0, 6, 1, self),
+    Seat(1, 6, -1, self),
+    Seat(1, 6, 1, self),
+
+    Seat(0, 9, -1, self),
+    Seat(0, 9, 1, self),
+    Seat(1, 9, -1, self),
+    Seat(1, 9, 1, self),
   }
 
   self.seatsOccupied = {}
-  for i, seat in ipairs(self.seats) do
-    -- This list will hold the people sitting on the seats
-    self.seatsOccupied[i] = {}
-  end
 
   self.poles = {
     {2, 3}, {2, 9}
@@ -39,7 +48,7 @@ function Train:new()
   self:setWalls()
 
   self.passengers = {}
-  for i = 1, 3 do
+  for i = 1, 24 do
     local px = love.math.random(self.x + 20, self.x + self.cart_width - 20)
     local py = love.math.random(self.y + 20, self.y + self.cart_height - 20)
     -- px = self.x + 50
@@ -108,6 +117,10 @@ function Train:draw()
   love.graphics.translate(c1x * 5, c1y * 5)
   self:carriageOutline()
 
+  for i, seat in ipairs(self.seats) do
+    seat:draw()
+  end
+
   love.graphics.setLineWidth(0.5)
   self.world:draw()
 
@@ -119,6 +132,8 @@ function Train:draw()
   for i, pass in ipairs(self.passengers) do
     pass:draw()
   end
+
+  self.player:draw()
 
   love.graphics.pop()
 
