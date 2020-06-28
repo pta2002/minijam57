@@ -36,18 +36,25 @@ function Passenger:new(x, y, train)
 
   self:checkInsideTrain()
 
-  self.middleYmin = self.train.y + self.train.cart_height / 3
-  self.middleYmax = self.train.y + self.train.cart_height * 2 / 3
+  self.middleYmin = self.train.y + self.train.cart_height / 2 - 20
+  self.middleYmax = self.train.y + self.train.cart_height / 2 + 20
   self.middleY = self.train.y + self.train.cart_height / 2
 
-  self.maxSpeed = love.math.random(5, 200)
+  self.maxSpeed = love.math.random(50, 100)
+
+  self.body:setCollisionClass('Passenger')
+  self.body:setObject(self)
 end
 
 function Passenger:directionTo(toX, toY)
   local x, y = self.body:getX(), self.body:getY()
 
   local vecX, vecY = toX - x, toY - y
-  local dist = math.sqrt(dist2(x, y, toX, toY))
+  local dist = math.sqrt(math.pow(vecX, 2) + math.pow(vecY, 2))
+
+  if dist == 0 then
+    return 0, 0
+  end
 
   return vecX / dist, vecY / dist
 end
@@ -79,6 +86,11 @@ function Passenger:update(dt)
         self.phase = walkingThroughMiddle
       else
         self.phase = stop
+
+        self.findASeat()
+        if self.goingTo then
+          self.phase = walkingThroughMiddle
+        end
       end
     end
   end
@@ -90,6 +102,67 @@ function Passenger:update(dt)
     self.body:setLinearVelocity(vx * self.maxSpeed, vy * self.maxSpeed)
 
     -- TODO find another spot if you don't get it!
+
+    if self.body:getX() < seatX + 5 and self.body:getX() > seatX - 5 then
+      self.phase = goingToSeat
+    end
+  end
+
+  if self.phase == goingToSeat then
+    -- we have to aim for the seat, and claim a spot finally, we'll try tog o as far as possible and once we're not moving we claim it
+    -- idk how we're gonna say we're not moving anymore, psosibly by checking we've collided with smth? idk
+
+    local x, y = self.train:getSeatEdge(self.train.seats[self.goingTo[2]])
+    local dx, dy = self:directionTo(x, y)
+    self.body:setLinearVelocity(dx * self.maxSpeed, dy * self.maxSpeed)
+
+    -- Alright!
+
+    if #self.train.seatsOccupied[self.goingTo[2]] >= 3 then
+      -- Uh oh! Find another seat!
+      self:findASeat()
+      self.phase = goingToMiddle
+    end
+  end
+
+  if self.phase == goingToSeat and self:checkInSeat() then
+    self:sitDown(self.seat)
+  end
+end
+
+function Passenger:checkInSeat()
+  -- AAAAA, I say, with only a few hours left, and still no gameplay
+  local x, y = self.body:getX(), self.body:getY()
+  for i, seat in ipairs(self.train.seats) do
+    local seatX, seatY = self.train:getSeatCoords(seat)
+    local sx, sy, ex, ey
+    if seat[3] == 1 then
+      sx = seatX + 10
+      sy = seatY
+      ex = sx + 40
+      ey = seatY + self.train.cart_height / 3
+    else
+      sx = seatX - 40
+      sy = seatY
+      ex = seatX
+      ey = seatY + self.train.cart_height / 3
+    end
+
+    if x >= sx and x <= ex and y >= sy and y <= ey then
+      self.seat = i
+      return true
+    end
+  end
+
+  self.seat = nil
+  return false
+end
+
+function Passenger:sitDown(id)
+  if #self.train.seatsOccupied[id] < 3 then
+    self.phase = seatingDown
+    table.insert(self.train.seatsOccupied[id], self)
+    self.goingTo = nil
   end
 end
 
@@ -130,7 +203,44 @@ function Passenger:findASeat()
 end
 
 function Passenger:draw()
-  
+  if self.phase == goingToSeat then
+    local x, y = self.train:getSeatCoords(self.train.seats[self.goingTo[2]])
+    love.graphics.setColor(1, 0, 0)
+    love.graphics.circle("fill", x, y, 2)
+
+    local dx, dy = self:directionTo(x, y)
+    love.graphics.line(self.body:getX(), self.body:getY(), self.body:getX() + dx * self.maxSpeed * 0.1, self.body:getY() + dy * self.maxSpeed * 0.1)
+
+    love.graphics.setColor(0, 0, 1)
+    local dx, dy = self.body:getLinearVelocity()
+    love.graphics.line(self.body:getX(), self.body:getY(), self.body:getX() + dx * 0.1, self.body:getY() + dy * 0.1)
+  end
+
+  if self.phase == seatingDown then
+    love.graphics.setColor(0, 1, 0)
+    love.graphics.circle("fill", self.body:getX(), self.body:getY(), 10)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(self.seat, self.body:getX() - 10, self.body:getY() - 10)
+  end
+
+  for i, seat in ipairs(self.train.seats) do
+    local seatX, seatY = self.train:getSeatCoords(seat)
+    local sx, sy, ex, ey
+    if seat[3] == 1 then
+      sx = seatX + 10
+      sy = seatY
+      ex = sx + 40
+      ey = seatY + self.train.cart_height / 3
+    else
+      sx = seatX - 40
+      sy = seatY
+      ex = seatX
+      ey = seatY + self.train.cart_height / 3
+    end
+
+    love.graphics.setColor(1, 1, 0)
+    love.graphics.rectangle("line", sx, sy, ex - sx, ey - sy)
+  end
 end
 
 -- Checks if we are inside the train

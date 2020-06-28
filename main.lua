@@ -5,7 +5,8 @@ local Train = require "game.train"
 function love.load()
   love.window.setMode(800, 600, {
     vsync = true,
-    msaa = 4
+    msaa = 4,
+    display = 2
   })
   
   ----------------------
@@ -29,6 +30,7 @@ function love.load()
 
   -- Player
   player = train.world:newCircleCollider(player_x, player_y, 10)
+  player:setCollisionClass('Player')
 
   map = Map()
 end

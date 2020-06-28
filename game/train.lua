@@ -2,6 +2,7 @@ local wf = require "windfield"
 local GameObject = require "game.object"
 local Passenger = require "game.passenger"
 local Train = GameObject:extend()
+local Seat = require "game.seat"
 
 -- The train holds the world
 function Train:new()
@@ -16,8 +17,13 @@ function Train:new()
   -------------
   self.world = wf.newWorld(0, 0, true)
 
+  self.world:addCollisionClass('Wall')
+  self.world:addCollisionClass('Passenger')
+  self.world:addCollisionClass('Player')
+  self.world:addCollisionClass('Seat', { ignores = { 'Passenger', 'Player' } })
+
   self.seats = { -- {side, x, dir}
-    {0, 3, -1}, {0, 2, -1}, {0, 4, 1}, {0, 6, -1}, {1, 4, -1}
+    {0, 3, -1}, 
   }
 
   self.seatsOccupied = {}
@@ -33,7 +39,7 @@ function Train:new()
   self:setWalls()
 
   self.passengers = {}
-  for i = 0, 50 do
+  for i = 1, 3 do
     local px = love.math.random(self.x + 20, self.x + self.cart_width - 20)
     local py = love.math.random(self.y + 20, self.y + self.cart_height - 20)
     -- px = self.x + 50
@@ -45,12 +51,16 @@ end
 function Train:setWalls()
   local wall_top = self.world:newRectangleCollider(self.x - 5, self.y - 5, self.cart_width + 10, 10)
   wall_top:setType('static')
+  wall_top:setCollisionClass('Wall')
   local wall_bottom = self.world:newRectangleCollider(self.x - 5, self.y + self.cart_height - 5, self.cart_width + 10, 10)
   wall_bottom:setType('static')
+  wall_bottom:setCollisionClass('Wall')
   local wall_left = self.world:newRectangleCollider(self.x - 5, self.y - 5, 10, self.cart_height + 10)
   wall_left:setType('static')
+  wall_left:setCollisionClass('Wall')
   local wall_right = self.world:newRectangleCollider(self.x + self.cart_width - 5, self.y - 5, 10, self.cart_height + 10)
   wall_right:setType('static')
+  wall_right:setCollisionClass('Wall')
 
   for i, pole in ipairs(self.poles) do
     local x, y = self:getPoleCoords(pole)
@@ -70,7 +80,12 @@ function Train:getSeatCoords(seat)
 end
 
 function Train:getSeatEntrance(seat)
+  -- TODO fix!
   return self.x + seat[2] * self.cart_width / 12 - 5 + self.cart_width * seat[3] / 24 , self.y + (self.cart_height * (seat[1] + 1) / 3)
+end
+
+function Train:getSeatEdge(seat)
+  return self.x + seat[2] * self.cart_width / 12 - 5 + self.cart_width * seat[3] / 24 , self.y + (self.cart_height * seat[1])
 end
 
 function Train:getPoleCoords(pole)
@@ -99,6 +114,10 @@ function Train:draw()
   love.graphics.setColor(254 / 255, 231 / 255, 97 / 255)
   for i, pole in ipairs(self.poles) do
     love.graphics.circle("fill", self.x + self.cart_width * pole[2]/ 12, self.y + self.cart_height * pole[1] / 4, 2)
+  end
+
+  for i, pass in ipairs(self.passengers) do
+    pass:draw()
   end
 
   love.graphics.pop()
